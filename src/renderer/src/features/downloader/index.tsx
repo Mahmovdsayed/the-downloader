@@ -87,14 +87,35 @@ export const DownloaderScreen: React.FC = () => {
   }
 
   // ── Start download ─────────────────────────────────────────────────────────
-  const handleStartDownload = () => {
-    if (!videoDetails || selectedFormatId === null || !destinationPath) return
+  const handleStartDownload = async () => {
+    if (!videoDetails || selectedFormatId === null) return
 
+    let destPath = destinationPath
     const ext = modeToExtension(mode)
     const safeName = sanitizeFilename(videoDetails.title)
 
+    // If destination was not selected yet, prompt the native save dialog
+    if (!destPath) {
+      if (window.electronAPI?.dialog) {
+        const chosen = await window.electronAPI.dialog.chooseSavePath({
+          suggestedFileName: `${safeName}.${ext}`,
+          filters: [
+            {
+              name: `${ext.toUpperCase()} File`,
+              extensions: [ext],
+            },
+            { name: 'All Files', extensions: ['*'] },
+          ],
+        })
+        if (!chosen) return // User cancelled save dialog
+        destPath = chosen
+        setDestinationPath(chosen)
+      } else {
+        return
+      }
+    }
+
     // Ensure destination ends with the required extension (.mp4 or .mp3)
-    let destPath = destinationPath
     const hasExt = /\.[a-z0-9]{2,5}$/i.test(destPath)
     if (!hasExt) {
       destPath = `${destPath.replace(/\/$/, '')}/${safeName}.${ext}`
@@ -161,7 +182,7 @@ export const DownloaderScreen: React.FC = () => {
   })()
 
   const isReadyToDownload =
-    screenState === 'ready' && selectedFormatId !== null && destinationPath !== null
+    screenState === 'ready' && selectedFormatId !== null
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -251,11 +272,11 @@ export const DownloaderScreen: React.FC = () => {
                 )}
               >
                 <Download className="w-4 h-4" />
-                {!destinationPath && !suggestedDestPath
-                  ? 'Choose Save Location First'
-                  : selectedFormatId === null
-                    ? 'Select a Format First'
-                    : 'Start Download'}
+                {selectedFormatId === null
+                  ? 'Select a Format First'
+                  : destinationPath
+                    ? `Start Download (${fileExt.toUpperCase()})`
+                    : `Choose Save Location & Download (${fileExt.toUpperCase()})`}
               </button>
             </>
           )}

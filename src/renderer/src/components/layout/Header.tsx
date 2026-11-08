@@ -12,7 +12,7 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
       <div className={platform === 'darwin' ? 'w-16' : 'w-4'} />
 
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground [app-region:no-drag]">
-        <HardDrive className="w-3.5 h-3.5 text-primary" />
+        <img src="/icon.png" alt="" className="w-4 h-4 rounded object-cover shadow-sm" />
         <span className="font-semibold text-foreground">Local Video Downloader</span>
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
           Local-First Engine

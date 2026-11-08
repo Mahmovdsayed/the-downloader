@@ -21,9 +21,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     <aside className="w-56 border-r border-border/50 bg-card/40 flex flex-col justify-between p-3 select-none">
       <div className="space-y-4">
         <div className="px-3 py-2 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Film className="w-4 h-4" />
-          </div>
+          <img
+            src="/icon.png"
+            alt="Local Video Downloader"
+            className="w-8 h-8 rounded-lg shadow-sm border border-border/40 object-cover"
+          />
           <div>
             <div className="text-sm font-semibold text-foreground tracking-tight">Downloader</div>
             <div className="text-[10px] text-muted-foreground">Local-First v0.1</div>

@@ -82,9 +82,11 @@ export const AboutScreen: React.FC = () => {
       {/* Version & Build Information */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-            <Package className="w-5 h-5" />
-          </div>
+          <img
+            src="/icon.png"
+            alt="Local Video Downloader"
+            className="w-12 h-12 rounded-xl border border-border/40 shadow-sm object-cover"
+          />
           <div>
             <h3 className="text-sm font-semibold text-foreground">
               {appInfo?.name || 'Local Video Downloader'}
