@@ -4,10 +4,7 @@ import {
   CheckCircle,
   AlertTriangle,
   RotateCw,
-  ExternalLink,
-  Info,
   ShieldCheck,
-  Package,
 } from 'lucide-react'
 import { AppInfo, UpdateStatus } from '../../../../shared/types/ipc.js'
 
@@ -17,12 +14,10 @@ export const AboutScreen: React.FC = () => {
   const [checking, setChecking] = useState(false)
 
   useEffect(() => {
-    // Fetch system and app build info
     if (window.electronAPI?.app) {
       window.electronAPI.app.getInfo().then(setAppInfo).catch(console.error)
     }
 
-    // Subscribe to auto-updater status events
     if (window.electronAPI?.updater) {
       const unsubscribe = window.electronAPI.updater.onStatus((status) => {
         setUpdateStatus(status)
@@ -80,80 +75,75 @@ export const AboutScreen: React.FC = () => {
       </div>
 
       {/* Version & Build Information */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-3">
-          <img
-            src="/icon.png"
-            alt="Local Video Downloader"
-            className="w-12 h-12 rounded-xl border border-border/40 shadow-sm object-cover"
-          />
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              {appInfo?.name || 'Local Video Downloader'}
-            </h3>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-              <span>Version {appInfo?.version || '0.1.0'}</span>
-              <span>•</span>
-              <span className="capitalize">{appInfo?.platform} ({appInfo?.arch})</span>
-              <span>•</span>
-              <span>{appInfo?.isPackaged ? 'Packaged Release' : 'Development Build'}</span>
-            </div>
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {appInfo?.name || 'Local Video Downloader'}
+          </h3>
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span>Version {appInfo?.version || '0.1.0'}</span>
+            <span>•</span>
+            <span className="capitalize">{appInfo?.platform} ({appInfo?.arch})</span>
+            <span>•</span>
+            <span>{appInfo?.isPackaged ? 'Packaged Release' : 'Development Build'}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
-          <div className="p-3 rounded-lg bg-background border border-border/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-lg bg-background border border-border">
             <div className="text-[10px] text-muted-foreground uppercase font-medium">Electron</div>
             <div className="font-mono text-foreground mt-0.5">{appInfo?.electronVersion || 'v33.x'}</div>
           </div>
-          <div className="p-3 rounded-lg bg-background border border-border/60">
+          <div className="p-3 rounded-lg bg-background border border-border">
             <div className="text-[10px] text-muted-foreground uppercase font-medium">Chromium</div>
             <div className="font-mono text-foreground mt-0.5">{appInfo?.chromeVersion || 'v130.x'}</div>
           </div>
-          <div className="p-3 rounded-lg bg-background border border-border/60">
+          <div className="p-3 rounded-lg bg-background border border-border">
             <div className="text-[10px] text-muted-foreground uppercase font-medium">Node.js</div>
             <div className="font-mono text-foreground mt-0.5">{appInfo?.nodeVersion || 'v20.x'}</div>
           </div>
-          <div className="p-3 rounded-lg bg-background border border-border/60">
-            <div className="text-[10px] text-muted-foreground uppercase font-medium">Runtime Architecture</div>
+          <div className="p-3 rounded-lg bg-background border border-border">
+            <div className="text-[10px] text-muted-foreground uppercase font-medium">Architecture</div>
             <div className="font-mono text-foreground mt-0.5">{appInfo?.arch || 'arm64'}</div>
           </div>
         </div>
       </div>
 
       {/* Auto-Updater Section */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <DownloadCloud className="w-5 h-5 text-primary" />
+            <DownloadCloud className="w-5 h-5 text-foreground" />
             <div>
               <h3 className="text-sm font-semibold text-foreground">Application Updates</h3>
               <p className="text-xs text-muted-foreground">
-                Automated update delivery powered by electron-updater & GitHub Releases.
+                Delivered via GitHub Releases using electron-updater.
               </p>
             </div>
           </div>
 
-          {updateStatus.status === 'idle' || updateStatus.status === 'not-available' || updateStatus.status === 'error' ? (
+          {(updateStatus.status === 'idle' ||
+            updateStatus.status === 'not-available' ||
+            updateStatus.status === 'error') && (
             <button
               onClick={handleCheckUpdates}
               disabled={checking}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary hover:bg-secondary/80 text-foreground transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary hover:bg-accent text-foreground transition-colors disabled:opacity-50 border border-border"
             >
               <RotateCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
               Check for Updates
             </button>
-          ) : null}
+          )}
         </div>
 
         {/* Status display */}
-        <div className="p-4 rounded-lg bg-background border border-border/60 space-y-3">
+        <div className="p-4 rounded-lg bg-background border border-border space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground font-medium">Update Status:</span>
             <span className="font-semibold text-foreground capitalize flex items-center gap-1.5">
-              {updateStatus.status === 'checking' && <RotateCw className="w-3.5 h-3.5 animate-spin text-primary" />}
-              {updateStatus.status === 'available' && <CheckCircle className="w-3.5 h-3.5 text-blue-400" />}
-              {updateStatus.status === 'downloaded' && <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />}
+              {updateStatus.status === 'checking' && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
+              {updateStatus.status === 'available' && <CheckCircle className="w-3.5 h-3.5 text-foreground" />}
+              {updateStatus.status === 'downloaded' && <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
               {updateStatus.status === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
               {updateStatus.status}
             </span>
@@ -168,9 +158,9 @@ export const AboutScreen: React.FC = () => {
           {/* Progress bar when downloading */}
           {updateStatus.status === 'downloading' && (
             <div className="space-y-1.5 pt-1">
-              <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  className="bg-foreground h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${updateStatus.progress || 0}%` }}
                 />
               </div>
@@ -185,10 +175,10 @@ export const AboutScreen: React.FC = () => {
 
           {/* Download button when update is available */}
           {updateStatus.status === 'available' && (
-            <div className="pt-2 flex justify-end">
+            <div className="pt-1 flex justify-end">
               <button
                 onClick={handleDownload}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors"
               >
                 Download Update (v{updateStatus.version})
               </button>
@@ -197,10 +187,10 @@ export const AboutScreen: React.FC = () => {
 
           {/* Restart button when downloaded */}
           {updateStatus.status === 'downloaded' && (
-            <div className="pt-2 flex justify-end">
+            <div className="pt-1 flex justify-end">
               <button
                 onClick={handleInstall}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors"
               >
                 Restart & Apply Update
               </button>
@@ -210,9 +200,9 @@ export const AboutScreen: React.FC = () => {
       </div>
 
       {/* Third Party & License Notices */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-3">
+      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-primary" />
+          <ShieldCheck className="w-4 h-4 text-foreground" />
           <h3 className="text-sm font-semibold text-foreground">Third-Party & Media Processing Notices</h3>
         </div>
 
@@ -228,8 +218,8 @@ export const AboutScreen: React.FC = () => {
             proprietary application code.
           </p>
           <div className="pt-1">
-            <span className="text-[11px] text-primary/80 font-mono">
-              Build source recommendations: Gyan.dev (Windows), Evermeet (macOS), or standard static builds from ffmpeg.org.
+            <span className="text-[11px] font-mono text-muted-foreground/80">
+              Build source recommendations: Gyan.dev (Windows), Evermeet (macOS), or static builds from ffmpeg.org.
             </span>
           </div>
         </div>
@@ -237,4 +227,3 @@ export const AboutScreen: React.FC = () => {
     </div>
   )
 }
-

@@ -1,5 +1,5 @@
 import React from 'react'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Verified } from 'lucide-react'
 
 interface HeaderProps {
   platform: string
@@ -12,17 +12,15 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
       <div className={platform === 'darwin' ? 'w-16' : 'w-4'} />
 
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground [app-region:no-drag]">
-        <img src="/icon.png" alt="" className="w-4 h-4 rounded object-cover shadow-sm" />
         <span className="font-semibold text-foreground">Local Video Downloader</span>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground [app-region:no-drag]">
         <span className="flex items-center gap-1 text-[11px] text-emerald-400">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          Offline Ready
+          <Verified className="w-3.5 h-3.5" />
+          Powered by nest studio
         </span>
       </div>
     </header>
   )
 }
-

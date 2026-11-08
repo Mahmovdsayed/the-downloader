@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root,
-  .dark {
+  /* Default / dark theme: true black (OLED-optimized) */
+  :root {
     --background: 0 0% 0%;
     --foreground: 0 0% 98%;
 
@@ -33,10 +33,42 @@
     --input: 0 0% 13%;
     --ring: 0 0% 80%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;
   }
 
-  .light {
+  /* Explicit dark class — identical to :root default */
+  html.dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 55%;
+
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
+    --ring: 0 0% 80%;
+  }
+
+  /* Light theme */
+  html.light {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
 
@@ -64,8 +96,6 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
-
-    --radius: 1rem;
   }
 }
 
@@ -79,13 +109,11 @@ body {
   overflow: hidden;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Zero artificial neon glows or AI-template shadows */
+/* Zero artificial shadows — no AI-template glow effects */
 *,
 ::before,
 ::after {

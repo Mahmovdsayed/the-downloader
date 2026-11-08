@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # triggers on v1.0.0, v1.2.3, etc.
+
+permissions:
+  contents: write  # needed to create GitHub Releases and upload assets
+
+jobs:
+  # ── macOS build (arm64 + x64 DMGs) ─────────────────────────────────────────
+  build-mac:
+    runs-on: macos-14   # Apple Silicon runner (arm64 host)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Place FFmpeg binaries before building.
+      # You must commit pre-built static FFmpeg/FFprobe binaries into the repo
+      # under resources/binaries/ for each target platform/arch.
+      # See README for download sources.
+      - name: Check FFmpeg binaries exist
+        run: |
+          echo "=== darwin-arm64 ==="
+          ls -lh resources/binaries/darwin-arm64/ || echo "MISSING — build will skip extraResources"
+          echo "=== darwin-x64 ==="
+          ls -lh resources/binaries/darwin-x64/ || echo "MISSING — build will skip extraResources"
+
+      - name: Build & publish macOS (arm64 + x64)
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false   # skip code-signing on CI (unsigned DMG is fine)
+        run: bun run build && npx electron-builder --mac --publish always
+
+  # ── Windows build (x64 + arm64 NSIS installers) ─────────────────────────────
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check FFmpeg binaries exist
+        shell: bash
+        run: |
+          echo "=== win32-x64 ==="
+          ls -lh resources/binaries/win32-x64/ || echo "MISSING — build will skip extraResources"
+          echo "=== win32-arm64 ==="
+          ls -lh resources/binaries/win32-arm64/ || echo "MISSING — build will skip extraResources"
+
+      - name: Build & publish Windows (x64 + arm64)
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: bun run build && npx electron-builder --win --publish always

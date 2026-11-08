@@ -20,16 +20,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
   return (
     <aside className="w-56 border-r border-border bg-background flex flex-col justify-between p-3 select-none">
       <div className="space-y-4">
-        <div className="px-2.5 py-1.5 flex items-center gap-2.5">
-          <img
-            src="/icon.png"
-            alt="Local Video Downloader"
-            className="w-7 h-7 rounded-md border border-border object-cover"
-          />
-          <div>
-            <div className="text-xs font-semibold text-foreground tracking-tight">Downloader</div>
-            <div className="text-[10px] text-muted-foreground">Local v0.1</div>
-          </div>
+        {/* App name / branding — no icon */}
+        <div className="px-2.5 py-1.5">
+          <div className="text-xs font-semibold text-foreground tracking-tight">Downloader</div>
+          <div className="text-[10px] text-muted-foreground">Local v0.1</div>
         </div>
 
         <nav className="space-y-1">
