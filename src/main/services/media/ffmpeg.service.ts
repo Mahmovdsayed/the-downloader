@@ -255,5 +255,57 @@ export class FfmpegService {
       })
     })
   }
+
+  /**
+   * Convert any audio input (M4A/OPUS/WebM-audio) to MP3 using libmp3lame.
+   * Quality preset: -q:a 2 (≈190 kbps VBR — high quality, universal compatibility).
+   */
+  public static convertToMp3(options: {
+    inputPath: string
+    outputPath: string
+    trim?: { startSeconds: number; endSeconds: number }
+    onProcessSpawned?: (process: ChildProcess) => void
+  }): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const resolved = resolveBinaryPath('ffmpeg')
+      if (!resolved.found || !resolved.path) {
+        return reject(new Error(resolved.error || 'FFmpeg binary not available for MP3 conversion.'))
+      }
+
+      const args: string[] = []
+
+      if (options.trim) {
+        args.push(
+          '-ss', String(Math.max(0, options.trim.startSeconds)),
+          '-to', String(options.trim.endSeconds),
+        )
+      }
+
+      args.push(
+        '-i', options.inputPath,
+        '-vn',                     // drop any video stream
+        '-c:a', 'libmp3lame',
+        '-q:a', '2',               // VBR ~190 kbps — high quality
+        '-y', options.outputPath,
+      )
+
+      const child = spawn(resolved.path, args, { windowsHide: true, shell: false })
+      if (options.onProcessSpawned) options.onProcessSpawned(child)
+
+      let stderr = ''
+      child.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+      child.on('error', (err) => { reject(new Error(`FFmpeg MP3 conversion failed: ${err.message}`)) })
+      child.on('close', (code, signal) => {
+        if (signal === 'SIGKILL' || signal === 'SIGTERM') {
+          return reject(new Error('FFmpeg MP3 conversion was cancelled.'))
+        }
+        if (code === 0) {
+          resolve()
+        } else {
+          reject(new Error(`FFmpeg MP3 conversion exited with code ${code}: ${stderr.slice(-300)}`))
+        }
+      })
+    })
+  }
 }
 

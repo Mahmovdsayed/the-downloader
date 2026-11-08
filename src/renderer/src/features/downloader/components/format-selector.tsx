@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Film, Mic, Layers, Check } from 'lucide-react'
+import { Film, Music, Check } from 'lucide-react'
 import { VideoDetails, VideoFormatOption, DownloadMode } from '../../../../../shared/types/ipc.js'
 import { cn } from '../../../lib/utils.js'
 
@@ -21,6 +21,7 @@ function formatBitrate(bps?: number): string {
 type TabDef = {
   id: DownloadMode
   label: string
+  outputLabel: string
   icon: React.FC<{ className?: string }>
   description: string
 }
@@ -28,36 +29,28 @@ type TabDef = {
 const TABS: TabDef[] = [
   {
     id: 'video-audio',
-    label: 'Video + Audio',
-    icon: Layers,
-    description: 'Best quality — merges separate video and audio streams via FFmpeg',
-  },
-  {
-    id: 'video-only',
-    label: 'Video Only',
+    label: 'Video',
+    outputLabel: 'MP4',
     icon: Film,
-    description: 'Video stream with no audio track',
+    description:
+      'Downloads the best quality video + audio and saves as MP4. Separate streams are merged via FFmpeg.',
   },
   {
     id: 'audio-only',
-    label: 'Audio Only',
-    icon: Mic,
-    description: 'Audio-only extraction (MP4A / OPUS / WebM)',
+    label: 'Audio',
+    outputLabel: 'MP3',
+    icon: Music,
+    description:
+      'Downloads the highest-quality audio stream and converts it to MP3 (~190 kbps VBR) via FFmpeg.',
   },
 ]
 
 function filterFormats(formats: VideoFormatOption[], mode: DownloadMode): VideoFormatOption[] {
-  switch (mode) {
-    case 'video-audio':
-      // Show video formats that are video-only (need FFmpeg merge) OR combined
-      return formats.filter((f) => f.hasVideo)
-    case 'video-only':
-      return formats.filter((f) => f.hasVideo && !f.hasAudio)
-    case 'audio-only':
-      return formats.filter((f) => f.hasAudio && !f.hasVideo)
-    default:
-      return formats
+  if (mode === 'audio-only') {
+    return formats.filter((f) => f.hasAudio && !f.hasVideo)
   }
+  // video-audio: show all video formats (both combined and video-only — we always merge/remux)
+  return formats.filter((f) => f.hasVideo)
 }
 
 interface FormatSelectorProps {
@@ -78,43 +71,52 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
   const filtered = useMemo(() => {
     const seen = new Set<string>()
     return filterFormats(details.formats, mode).filter((f) => {
-      // De-duplicate by label+container+hasAudio
-      const key = `${f.qualityLabel || ''}|${f.container || ''}|${f.hasAudio}|${f.fps || ''}`
+      const key = `${f.qualityLabel || ''}|${f.hasAudio}|${f.fps || ''}`
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
   }, [details.formats, mode])
 
+  const tab = TABS.find((t) => t.id === mode)!
+
   return (
     <div className="space-y-3">
       {/* Mode tabs */}
       <div className="flex gap-1 p-1 rounded-lg bg-secondary/40 border border-border/40">
-        {TABS.map((tab) => {
-          const Icon = tab.icon
-          const isActive = mode === tab.id
+        {TABS.map((t) => {
+          const Icon = t.icon
+          const isActive = mode === t.id
           return (
             <button
-              key={tab.id}
-              onClick={() => onModeChange(tab.id)}
+              key={t.id}
+              onClick={() => onModeChange(t.id)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all',
+                'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold transition-all',
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
               )}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              {t.label}
+              <span
+                className={cn(
+                  'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                  isActive
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground',
+                )}
+              >
+                {t.outputLabel}
+              </span>
             </button>
           )
         })}
       </div>
 
-      {/* Mode description */}
-      <p className="text-[11px] text-muted-foreground px-1">
-        {TABS.find((t) => t.id === mode)?.description}
-      </p>
+      {/* Description */}
+      <p className="text-[11px] text-muted-foreground px-1">{tab.description}</p>
 
       {/* Format list */}
       {filtered.length === 0 ? (
@@ -150,27 +152,23 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-foreground">
-                      {fmt.qualityLabel || fmt.label || `itag ${fmt.itag}`}
+                      {fmt.qualityLabel || fmt.label || `Format ${fmt.itag}`}
                     </span>
-                    {fmt.container && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                        .{fmt.container}
-                      </span>
-                    )}
                     {fmt.fps && fmt.fps > 30 && (
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                         {fmt.fps}fps
                       </span>
                     )}
+                    {/* Show "needs merge" badge for video-only formats in video-audio mode */}
                     {!fmt.hasAudio && fmt.hasVideo && mode === 'video-audio' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        needs merge
+                        FFmpeg merge
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
-                    {fmt.videoCodec && <span>{fmt.videoCodec}</span>}
-                    {fmt.audioCodec && <span>{fmt.audioCodec}</span>}
+                    {fmt.videoCodec && <span className="font-mono">{fmt.videoCodec.split('.')[0]}</span>}
+                    {fmt.audioCodec && <span className="font-mono">{fmt.audioCodec.split('.')[0]}</span>}
                     {fmt.bitrate && <span>{formatBitrate(fmt.bitrate)}</span>}
                     {fmt.contentLength && (
                       <span className="text-muted-foreground/70">≈ {formatBytes(fmt.contentLength)}</span>
@@ -185,4 +183,3 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
     </div>
   )
 }
-

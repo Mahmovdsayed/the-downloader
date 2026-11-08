@@ -19,7 +19,7 @@ export function registerDownloadIpc(): void {
     if (!req.url || typeof req.url !== 'string') {
       throw new Error('Invalid download request: Missing or invalid URL.')
     }
-    if (!req.mode || !['video-audio', 'video-only', 'audio-only'].includes(req.mode)) {
+    if (!req.mode || !['video-audio', 'audio-only'].includes(req.mode)) {
       throw new Error('Invalid download request: Invalid download mode.')
     }
     if (typeof req.formatId !== 'number') {

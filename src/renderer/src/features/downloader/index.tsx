@@ -20,9 +20,9 @@ function sanitizeFilename(name: string): string {
     .substring(0, 200)
 }
 
-function modeToExtension(mode: DownloadMode, container?: string): string {
-  if (mode === 'audio-only') return container || 'm4a'
-  return container || 'mp4'
+/** Output extension is always mp4 for video, mp3 for audio */
+function modeToExtension(mode: DownloadMode): string {
+  return mode === 'audio-only' ? 'mp3' : 'mp4'
 }
 
 function generateJobId(): string {
@@ -73,31 +73,34 @@ export const DownloaderScreen: React.FC = () => {
     setSelectedFormatId(null)
     if (!videoDetails) return
 
-    // Auto-pick first format for new mode
-    const filtered = videoDetails.formats.filter((f) => {
-      if (newMode === 'audio-only') return f.hasAudio && !f.hasVideo
-      if (newMode === 'video-only') return f.hasVideo && !f.hasAudio
-      return f.hasVideo
-    })
-    if (filtered.length > 0) setSelectedFormatId(filtered[0].itag)
+    if (newMode === 'audio-only') {
+      // Auto-pick best audio-only format (highest bitrate)
+      const audioFormats = videoDetails.formats
+        .filter((f) => f.hasAudio && !f.hasVideo)
+        .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))
+      if (audioFormats.length > 0) setSelectedFormatId(audioFormats[0].itag)
+    } else {
+      // Auto-pick best video format (highest resolution)
+      const videoFormats = videoDetails.formats.filter((f) => f.hasVideo)
+      if (videoFormats.length > 0) setSelectedFormatId(videoFormats[0].itag)
+    }
   }
 
   // ── Start download ─────────────────────────────────────────────────────────
   const handleStartDownload = () => {
     if (!videoDetails || selectedFormatId === null || !destinationPath) return
 
-    const selectedFmt = videoDetails.formats.find((f) => f.itag === selectedFormatId)
-    const ext = modeToExtension(mode, selectedFmt?.container)
+    const ext = modeToExtension(mode)
     const safeName = sanitizeFilename(videoDetails.title)
 
-    // Ensure destination ends with correct extension
+    // Ensure destination ends with the required extension (.mp4 or .mp3)
     let destPath = destinationPath
-    if (!destPath.endsWith(`.${ext}`)) {
-      // If the path looks like a directory (no extension), append filename
-      const hasExt = /\.[a-z0-9]{2,5}$/i.test(destPath)
-      if (!hasExt) {
-        destPath = `${destPath.replace(/\/$/, '')}/${safeName}.${ext}`
-      }
+    const hasExt = /\.[a-z0-9]{2,5}$/i.test(destPath)
+    if (!hasExt) {
+      destPath = `${destPath.replace(/\/$/, '')}/${safeName}.${ext}`
+    } else {
+      // Replace whatever extension the user chose with the required one
+      destPath = destPath.replace(/\.[a-z0-9]+$/i, `.${ext}`)
     }
 
     const jobId = generateJobId()
@@ -147,8 +150,8 @@ export const DownloaderScreen: React.FC = () => {
     ? sanitizeFilename(videoDetails.title)
     : 'video'
 
-  const selectedFmt = videoDetails?.formats.find((f) => f.itag === selectedFormatId)
-  const fileExt = modeToExtension(mode, selectedFmt?.container)
+  /** Output extension is always mp4 for video, mp3 for audio */
+  const fileExt = mode === 'audio-only' ? 'mp3' : 'mp4'
 
   // Build a full suggested path for the picker
   const suggestedDestPath = (() => {

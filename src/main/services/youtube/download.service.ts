@@ -1,14 +1,12 @@
 import { app } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
-import { pipeline } from 'node:stream/promises'
 import { DownloadRequest } from '../../../shared/types/ipc.js'
 import { getYtdlClient } from './ytdl.client.js'
 import { VideoInfoService } from './video-info.service.js'
 import { FormatSelectionService } from './format-selection.service.js'
 import { DownloadJobManager } from '../../jobs/download-job.manager.js'
 import { FfmpegService } from '../media/ffmpeg.service.js'
-import { TrimService } from '../media/trim.service.js'
 
 export class DownloadService {
   public static async startDownload(request: DownloadRequest): Promise<void> {
@@ -30,7 +28,7 @@ export class DownloadService {
         request.trim.startSeconds < 0 ||
         request.trim.endSeconds <= request.trim.startSeconds
       ) {
-        throw new Error('Invalid trim range: Start time must be >= 0 and end time must be greater than start.')
+        throw new Error('Invalid trim range: Start must be ≥ 0 and end must be greater than start.')
       }
     }
 
@@ -53,40 +51,12 @@ export class DownloadService {
         throw new Error(`Requested format itag ${request.formatId} is not available for this video.`)
       }
 
-      const isDualStreamNeeded =
-        request.mode === 'video-audio' && targetFormat.hasVideo && !targetFormat.hasAudio
+      // ── AUDIO-ONLY PATH ────────────────────────────────────────────────────
+      // Output: always MP3 (converted by FFmpeg libmp3lame)
+      if (request.mode === 'audio-only') {
+        const audioExt = targetFormat.container || 'm4a'
+        const tempAudioRaw = path.join(tempDir, `audio.${audioExt}`)
 
-      if (isDualStreamNeeded) {
-        // Dual stream workflow: Download video, download audio, merge with FFmpeg
-        const bestAudio = FormatSelectionService.findBestAudioFormat(allFormats)
-        if (!bestAudio) {
-          throw new Error('No compatible audio stream found to pair with selected video format.')
-        }
-
-        const videoExt = targetFormat.container || 'mp4'
-        const audioExt = bestAudio.container || 'm4a'
-        const tempVideoFile = path.join(tempDir, `video.${videoExt}`)
-        const tempAudioFile = path.join(tempDir, `audio.${audioExt}`)
-
-        // Step A: Download Video Stream
-        DownloadJobManager.emitProgress(request.jobId, {
-          phase: 'downloading-video',
-          message: 'Downloading video stream...',
-          percent: 0,
-        })
-
-        await this.streamToFile({
-          yt,
-          info: rawInfo,
-          format: targetFormat,
-          destination: tempVideoFile,
-          jobId: request.jobId,
-          phase: 'downloading-video',
-        })
-
-        if (job.isCancelled) return
-
-        // Step B: Download Audio Stream
         DownloadJobManager.emitProgress(request.jobId, {
           phase: 'downloading-audio',
           message: 'Downloading audio stream...',
@@ -96,119 +66,192 @@ export class DownloadService {
         await this.streamToFile({
           yt,
           info: rawInfo,
-          format: bestAudio,
-          destination: tempAudioFile,
+          format: targetFormat,
+          destination: tempAudioRaw,
           jobId: request.jobId,
           phase: 'downloading-audio',
         })
 
         if (job.isCancelled) return
 
-        // Step C: Merge streams with FFmpeg
-        // Always use MKV as the intermediate merge container — it is codec-agnostic
-        // and accepts VP9/AV1/H264 video + AAC/Opus/MP4A audio without re-encoding.
-        const mergePhase = request.trim ? 'trimming' : 'merging'
+        // Convert downloaded audio → MP3
         DownloadJobManager.emitProgress(request.jobId, {
-          phase: mergePhase,
-          message: request.trim ? 'Trimming and multiplexing audio/video...' : 'Multiplexing audio and video streams...',
-          percent: 90,
+          phase: 'merging',
+          message: 'Converting to MP3...',
+          percent: 92,
         })
 
-        const tempMergedMkv = path.join(tempDir, 'merged.mkv')
-        await FfmpegService.mergeStreams({
-          videoPath: tempVideoFile,
-          audioPath: tempAudioFile,
-          outputPath: tempMergedMkv,
+        await FfmpegService.convertToMp3({
+          inputPath: tempAudioRaw,
+          outputPath: request.destinationPath,
           trim: request.trim,
           onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
         })
 
-        if (job.isCancelled) return
-
-        // Step D: Remux MKV → user's chosen format if needed (fast stream copy)
-        const destExt = path.extname(request.destinationPath).slice(1).toLowerCase()
-        const needsRemux = destExt !== 'mkv' && destExt !== ''
-
-        if (needsRemux) {
-          DownloadJobManager.emitProgress(request.jobId, {
-            phase: 'saving',
-            message: `Remuxing to .${destExt}...`,
-            percent: 97,
-          })
-          await FfmpegService.remuxToTarget({
-            inputPath: tempMergedMkv,
-            outputPath: request.destinationPath,
-            onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
-          })
-        } else {
-          DownloadJobManager.emitProgress(request.jobId, {
-            phase: 'saving',
-            message: 'Writing completed file to destination...',
-            percent: 97,
-          })
-          await this.moveFile(tempMergedMkv, request.destinationPath)
-        }
+      // ── VIDEO-AUDIO PATH ───────────────────────────────────────────────────
+      // Output: always MP4 (MKV merge → remux to MP4)
       } else {
-        // Single stream workflow (video-audio combined, video-only, or audio-only)
-        const streamExt = targetFormat.container || (request.mode === 'audio-only' ? 'm4a' : 'mp4')
-        const tempStreamFile = path.join(tempDir, `stream.${streamExt}`)
+        // If the selected format already has audio, download as single stream
+        // then remux to MP4. If video-only format, download video + best audio
+        // separately and merge.
+        const needsDualStream = targetFormat.hasVideo && !targetFormat.hasAudio
 
-        const downloadPhase = request.mode === 'audio-only' ? 'downloading-audio' : 'downloading-video'
-        DownloadJobManager.emitProgress(request.jobId, {
-          phase: downloadPhase,
-          message: `Downloading ${request.mode === 'audio-only' ? 'audio' : 'video'} stream...`,
-          percent: 0,
-        })
+        if (needsDualStream) {
+          const bestAudio = FormatSelectionService.findBestAudioFormat(allFormats)
+          if (!bestAudio) {
+            throw new Error('No compatible audio stream found to pair with selected video format.')
+          }
 
-        await this.streamToFile({
-          yt,
-          info: rawInfo,
-          format: targetFormat,
-          destination: tempStreamFile,
-          jobId: request.jobId,
-          phase: downloadPhase,
-        })
+          const videoExt = targetFormat.container || 'mp4'
+          const audioExt = bestAudio.container || 'm4a'
+          const tempVideoFile = path.join(tempDir, `video.${videoExt}`)
+          const tempAudioFile = path.join(tempDir, `audio.${audioExt}`)
 
-        if (job.isCancelled) return
-
-        // Apply trimming if requested
-        if (request.trim) {
+          // A — Download video stream
           DownloadJobManager.emitProgress(request.jobId, {
-            phase: 'trimming',
-            message: 'Trimming media clip with FFmpeg...',
-            percent: 95,
+            phase: 'downloading-video',
+            message: 'Downloading video stream...',
+            percent: 0,
           })
 
-          const tempTrimmedFile = path.join(tempDir, `trimmed.${streamExt}`)
-          await TrimService.trimFile({
-            inputPath: tempStreamFile,
-            outputPath: tempTrimmedFile,
-            startSeconds: request.trim.startSeconds,
-            endSeconds: request.trim.endSeconds,
+          await this.streamToFile({
+            yt,
+            info: rawInfo,
+            format: targetFormat,
+            destination: tempVideoFile,
+            jobId: request.jobId,
+            phase: 'downloading-video',
+          })
+
+          if (job.isCancelled) return
+
+          // B — Download audio stream
+          DownloadJobManager.emitProgress(request.jobId, {
+            phase: 'downloading-audio',
+            message: 'Downloading audio stream...',
+            percent: 0,
+          })
+
+          await this.streamToFile({
+            yt,
+            info: rawInfo,
+            format: bestAudio,
+            destination: tempAudioFile,
+            jobId: request.jobId,
+            phase: 'downloading-audio',
+          })
+
+          if (job.isCancelled) return
+
+          // C — Merge to MKV (codec-agnostic container, -c copy for video, -c:a copy for audio)
+          const mergePhase = request.trim ? 'trimming' : 'merging'
+          DownloadJobManager.emitProgress(request.jobId, {
+            phase: mergePhase,
+            message: request.trim
+              ? 'Trimming and merging streams...'
+              : 'Merging video and audio streams...',
+            percent: 90,
+          })
+
+          const tempMkv = path.join(tempDir, 'merged.mkv')
+          await FfmpegService.mergeStreams({
+            videoPath: tempVideoFile,
+            audioPath: tempAudioFile,
+            outputPath: tempMkv,
+            trim: request.trim,
             onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
           })
 
           if (job.isCancelled) return
 
+          // D — Remux MKV → MP4 (stream copy, fast)
           DownloadJobManager.emitProgress(request.jobId, {
             phase: 'saving',
-            message: 'Writing completed file to destination...',
-            percent: 99,
+            message: 'Writing MP4 file...',
+            percent: 97,
           })
 
-          await this.moveFile(tempTrimmedFile, request.destinationPath)
+          await FfmpegService.remuxToTarget({
+            inputPath: tempMkv,
+            outputPath: request.destinationPath,
+            onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
+          })
+
         } else {
+          // Single combined stream — download then remux/trim to MP4
+          const streamExt = targetFormat.container || 'mp4'
+          const tempStreamFile = path.join(tempDir, `stream.${streamExt}`)
+
           DownloadJobManager.emitProgress(request.jobId, {
-            phase: 'saving',
-            message: 'Writing completed file to destination...',
-            percent: 99,
+            phase: 'downloading-video',
+            message: 'Downloading stream...',
+            percent: 0,
           })
 
-          await this.moveFile(tempStreamFile, request.destinationPath)
+          await this.streamToFile({
+            yt,
+            info: rawInfo,
+            format: targetFormat,
+            destination: tempStreamFile,
+            jobId: request.jobId,
+            phase: 'downloading-video',
+          })
+
+          if (job.isCancelled) return
+
+          if (request.trim || streamExt !== 'mp4') {
+            // Remux/trim to MP4
+            DownloadJobManager.emitProgress(request.jobId, {
+              phase: request.trim ? 'trimming' : 'saving',
+              message: request.trim ? 'Trimming and writing MP4...' : 'Writing MP4 file...',
+              percent: 95,
+            })
+
+            const tempMkv = path.join(tempDir, 'stream.mkv')
+            if (request.trim) {
+              await FfmpegService.mergeStreams({
+                videoPath: tempStreamFile,
+                audioPath: tempStreamFile,
+                outputPath: tempMkv,
+                trim: request.trim,
+                onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
+              })
+            } else {
+              await FfmpegService.remuxToTarget({
+                inputPath: tempStreamFile,
+                outputPath: request.destinationPath,
+                onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
+              })
+              // already written to destination — skip moveFile
+              DownloadJobManager.cleanupJob(request.jobId)
+              DownloadJobManager.emitProgress(request.jobId, {
+                phase: 'completed',
+                percent: 100,
+                message: 'Download completed successfully.',
+              })
+              return
+            }
+
+            if (job.isCancelled) return
+
+            await FfmpegService.remuxToTarget({
+              inputPath: tempMkv,
+              outputPath: request.destinationPath,
+              onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
+            })
+          } else {
+            // Already MP4, just move
+            DownloadJobManager.emitProgress(request.jobId, {
+              phase: 'saving',
+              message: 'Writing MP4 file...',
+              percent: 99,
+            })
+            await this.moveFile(tempStreamFile, request.destinationPath)
+          }
         }
       }
 
-      // Cleanup and complete
+      // Complete
       DownloadJobManager.cleanupJob(request.jobId)
       DownloadJobManager.emitProgress(request.jobId, {
         phase: 'completed',

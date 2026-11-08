@@ -1,4 +1,6 @@
-export type DownloadMode = 'video-audio' | 'video-only' | 'audio-only'
+/** video-audio → MP4 output (video + merged audio via FFmpeg)
+ *  audio-only  → MP3 output (best audio stream converted via FFmpeg libmp3lame) */
+export type DownloadMode = 'video-audio' | 'audio-only'
 
 export interface VideoFormatOption {
   itag: number
