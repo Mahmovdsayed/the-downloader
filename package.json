@@ -17,6 +17,7 @@
     "make:all": "bun run build && electron-builder -mw"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^5.2.1",
     "clsx": "^2.1.1",
     "electron-updater": "^6.3.9",
     "lucide-react": "^0.460.0",

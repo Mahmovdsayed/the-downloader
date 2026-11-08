@@ -1,8 +1,8 @@
 import React from 'react'
-import { Home, Settings, Info, Film } from 'lucide-react'
+import { Download, Settings, Info, Film, List } from 'lucide-react'
 import { cn } from '../../lib/utils.js'
 
-export type TabType = 'home' | 'settings' | 'about'
+export type TabType = 'downloader' | 'downloads' | 'settings' | 'about'
 
 interface SidebarProps {
   currentTab: TabType
@@ -11,7 +11,8 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => {
   const navItems = [
-    { id: 'home' as TabType, label: 'Home', icon: Home },
+    { id: 'downloader' as TabType, label: 'Download', icon: Download },
+    { id: 'downloads' as TabType, label: 'History', icon: List },
     { id: 'settings' as TabType, label: 'Settings', icon: Settings },
     { id: 'about' as TabType, label: 'About & Updates', icon: Info },
   ]
@@ -25,7 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
           </div>
           <div>
             <div className="text-sm font-semibold text-foreground tracking-tight">Downloader</div>
-            <div className="text-[10px] text-muted-foreground">Foundation v0.1</div>
+            <div className="text-[10px] text-muted-foreground">Local-First v0.1</div>
           </div>
         </div>
 
@@ -44,7 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50',
                 )}
               >
-                <Icon className={cn('w-4 h-4', isActive ? 'text-primary-foreground' : 'text-muted-foreground')} />
+                <Icon
+                  className={cn(
+                    'w-4 h-4',
+                    isActive ? 'text-primary-foreground' : 'text-muted-foreground',
+                  )}
+                />
                 {item.label}
               </button>
             )
@@ -61,4 +67,3 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     </aside>
   )
 }
-
