@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Search, Loader2, AlertCircle, X } from 'lucide-react'
+import { Input } from '../../../components/ui/input.js'
+import { Button } from '../../../components/ui/button.js'
 import { cn } from '../../../lib/utils.js'
 
 interface UrlInputProps {
@@ -47,7 +49,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onFetch, loading, error }) =
         setUrl(text.trim())
       }
     } catch {
-      // clipboard permission denied — user must paste manually
+      // clipboard permission denied
     }
   }
 
@@ -55,29 +57,24 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onFetch, loading, error }) =
     <div className="space-y-3">
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
             {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <Loader2 className="w-4 h-4 animate-spin text-foreground" />
             ) : (
               <Search className="w-4 h-4" />
             )}
           </div>
 
-          <input
+          <Input
             ref={inputRef}
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Paste a YouTube URL — e.g. https://www.youtube.com/watch?v=..."
+            placeholder="Paste a YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
             disabled={loading}
             className={cn(
-              'w-full pl-9 pr-20 py-2.5 rounded-lg border bg-background text-sm text-foreground',
-              'placeholder:text-muted-foreground/60 transition-colors outline-none',
-              'focus:border-primary focus:ring-1 focus:ring-primary/30',
-              'disabled:opacity-60 disabled:cursor-not-allowed',
-              error
-                ? 'border-destructive focus:border-destructive focus:ring-destructive/20'
-                : 'border-border',
+              'h-10 pl-9 pr-20 bg-background text-sm text-foreground placeholder:text-muted-foreground',
+              error && 'border-destructive focus-visible:ring-destructive',
             )}
           />
 
@@ -86,38 +83,35 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onFetch, loading, error }) =
               type="button"
               onClick={handleClear}
               tabIndex={-1}
-              className="absolute right-10 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+              className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={handlePaste}
             tabIndex={-1}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded bg-secondary/50 hover:bg-secondary"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
           >
             Paste
-          </button>
+          </Button>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={!isValid || loading}
-          className={cn(
-            'px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
-            'bg-primary text-primary-foreground hover:bg-primary/90',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-            'shadow-sm shadow-primary/20',
-          )}
+          className="h-10 px-5 text-sm font-medium"
         >
-          {loading ? 'Fetching…' : 'Get Info'}
-        </button>
+          {loading ? 'Fetching…' : 'Inspect'}
+        </Button>
       </form>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+        <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
@@ -125,4 +119,3 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onFetch, loading, error }) =
     </div>
   )
 }
-

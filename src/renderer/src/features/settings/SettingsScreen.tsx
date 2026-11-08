@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Folder, Moon, Sun, Monitor, Check } from 'lucide-react'
+import { Theme, getSavedTheme, applyTheme } from '../../lib/theme.js'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card.js'
+import { Button } from '../../components/ui/button.js'
+import { cn } from '../../lib/utils.js'
 
 export const SettingsScreen: React.FC = () => {
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(() => {
-    return (localStorage.getItem('theme_preference') as 'dark' | 'light' | 'system') || 'dark'
-  })
+  const [theme, setThemeState] = useState<Theme>(getSavedTheme)
   const [downloadPath, setDownloadPath] = useState<string>(() => {
     return localStorage.getItem('download_directory') || 'Default Downloads Directory'
   })
@@ -15,23 +17,10 @@ export const SettingsScreen: React.FC = () => {
     return localStorage.getItem('pref_auto_open') === 'true'
   })
 
-  useEffect(() => {
-    localStorage.setItem('theme_preference', theme)
-    const root = document.documentElement
-    if (theme === 'light') {
-      root.classList.add('light')
-    } else if (theme === 'dark') {
-      root.classList.remove('light')
-    } else {
-      // System
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      if (prefersDark) {
-        root.classList.remove('light')
-      } else {
-        root.classList.add('light')
-      }
-    }
-  }, [theme])
+  const handleThemeChange = (newTheme: Theme) => {
+    setThemeState(newTheme)
+    applyTheme(newTheme)
+  }
 
   const handleSelectFolder = async () => {
     try {
@@ -65,112 +54,115 @@ export const SettingsScreen: React.FC = () => {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure application interface preferences, default directories, and local execution behavior.
+        <p className="text-xs text-muted-foreground mt-1">
+          Preferences are automatically saved to your local device.
         </p>
       </div>
 
       {/* Theme Preference */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Theme Preference</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Select the visual appearance of the application shell.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { id: 'dark', label: 'Dark', icon: Moon },
-            { id: 'light', label: 'Light', icon: Sun },
-            { id: 'system', label: 'System', icon: Monitor },
-          ].map((item) => {
-            const Icon = item.icon
-            const isSelected = theme === item.id
-            return (
-              <button
-                key={item.id}
-                onClick={() => setTheme(item.id as 'dark' | 'light' | 'system')}
-                className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-medium transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                    : 'border-border/60 bg-secondary/20 hover:bg-secondary/50 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Icon className="w-5 h-5 mb-2" />
-                {item.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-sm font-semibold">Appearance</CardTitle>
+          <CardDescription>
+            Choose your preferred theme. True black is optimized for OLED displays.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: 'dark' as Theme, label: 'Dark (Black)', icon: Moon },
+              { id: 'light' as Theme, label: 'Light', icon: Sun },
+              { id: 'system' as Theme, label: 'System', icon: Monitor },
+            ].map((item) => {
+              const Icon = item.icon
+              const isSelected = theme === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleThemeChange(item.id)}
+                  className={cn(
+                    'flex flex-col items-center justify-center p-3.5 rounded-lg border text-xs font-medium transition-colors',
+                    isSelected
+                      ? 'border-foreground bg-accent text-foreground font-semibold'
+                      : 'border-border bg-card hover:bg-muted/60 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="w-4 h-4 mb-2" />
+                  <div className="flex items-center gap-1.5">
+                    {item.label}
+                    {isSelected && <Check className="w-3 h-3 text-foreground" />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Default Save Location */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Default Output Location</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Location on disk where processed media files will be saved by default.
-          </p>
-        </div>
+      <Card>
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-sm font-semibold">Default Download Location</CardTitle>
+          <CardDescription>
+            Where files will be saved if a specific path is not selected in the download dialog.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-5 pt-0">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 px-3 py-2 rounded-md bg-secondary/50 border border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
+              <Folder className="w-4 h-4 text-foreground/70 flex-shrink-0" />
+              <span className="truncate">{downloadPath}</span>
+            </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-xs font-mono text-muted-foreground truncate flex items-center gap-2">
-            <Folder className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="truncate">{downloadPath}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSelectFolder}
+            >
+              Browse
+            </Button>
           </div>
-
-          <button
-            onClick={handleSelectFolder}
-            className="px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
-          >
-            Browse Folder
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* General Processing Options */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Processing Behavior</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configure local file handling and post-processing preferences.
-          </p>
-        </div>
-
-        <div className="space-y-3 pt-1">
-          <label className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/40 cursor-pointer hover:bg-secondary/40 transition-colors">
+      <Card>
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-sm font-semibold">File Behavior</CardTitle>
+          <CardDescription>Configure local post-processing actions.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-5 pt-0 space-y-2">
+          <label className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/20 cursor-pointer hover:bg-muted/40 transition-colors">
             <div>
               <div className="text-xs font-medium text-foreground">Overwrite Existing Files</div>
               <div className="text-[11px] text-muted-foreground">
-                Automatically replace target file if a file with the same name already exists.
+                Replace destination file if a file with the same name already exists.
               </div>
             </div>
             <input
               type="checkbox"
               checked={overwriteFiles}
               onChange={toggleOverwrite}
-              className="w-4 h-4 rounded text-primary focus:ring-primary border-border"
+              className="w-4 h-4 rounded border-border accent-foreground cursor-pointer"
             />
           </label>
 
-          <label className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 border border-border/40 cursor-pointer hover:bg-secondary/40 transition-colors">
+          <label className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/20 cursor-pointer hover:bg-muted/40 transition-colors">
             <div>
-              <div className="text-xs font-medium text-foreground">Reveal In Finder / File Explorer</div>
+              <div className="text-xs font-medium text-foreground">Reveal in Finder / Explorer</div>
               <div className="text-[11px] text-muted-foreground">
-                Highlight the destination directory once media finishing is complete.
+                Automatically reveal the destination directory once media finishes saving.
               </div>
             </div>
             <input
               type="checkbox"
               checked={autoOpenFolder}
               onChange={toggleAutoOpen}
-              className="w-4 h-4 rounded text-primary focus:ring-primary border-border"
+              className="w-4 h-4 rounded border-border accent-foreground cursor-pointer"
             />
           </label>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-

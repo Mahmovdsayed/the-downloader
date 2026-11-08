@@ -8,7 +8,9 @@ import { TrimRangePicker, TrimRange } from './components/trim-range.js'
 import { DestinationPicker } from './components/destination-picker.js'
 import { DownloadProgressBar } from './components/download-progress.js'
 import { useDownload } from './hooks/use-download.js'
-import { cn } from '../../lib/utils.js'
+import { addHistoryRecord } from '../../lib/history.js'
+import { Card, CardContent } from '../../components/ui/card.js'
+import { Button } from '../../components/ui/button.js'
 
 type ScreenState = 'idle' | 'fetching' | 'ready' | 'downloading'
 
@@ -42,6 +44,28 @@ export const DownloaderScreen: React.FC = () => {
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
 
   const { state: dlState, progress, start, cancel, reset } = useDownload()
+
+  // Save to download history upon completion
+  React.useEffect(() => {
+    if (dlState === 'completed' && videoDetails && destinationPath && activeJobId) {
+      addHistoryRecord({
+        id: activeJobId,
+        url: videoDetails.url,
+        title: videoDetails.title,
+        thumbnailUrl: videoDetails.thumbnailUrl,
+        mode,
+        formatLabel: mode === 'audio-only' ? 'MP3 Audio' : 'MP4 Video',
+        destinationPath,
+        status: 'completed',
+        progressPercent: 100,
+        downloadedBytes: progress?.downloadedBytes || 0,
+        totalBytes: progress?.totalBytes || 0,
+        speedBytesPerSecond: 0,
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+      })
+    }
+  }, [dlState, videoDetails, destinationPath, activeJobId, mode, progress])
 
   // ── URL fetch ──────────────────────────────────────────────────────────────
   const handleFetch = useCallback(async (url: string) => {
@@ -190,50 +214,52 @@ export const DownloaderScreen: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Download</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Paste a YouTube URL to fetch media info and download locally.
+          <p className="text-xs text-muted-foreground mt-1">
+            Paste any YouTube URL to inspect formats and download locally.
           </p>
         </div>
 
         {screenState !== 'idle' && dlState !== 'downloading' && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleReset}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-secondary/50"
+            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Start over
-          </button>
+            Reset
+          </Button>
         )}
       </div>
 
       {/* URL Input */}
       {screenState !== 'downloading' && (
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-border/40">
-            <RefreshCw className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Video URL</h3>
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center gap-2 pb-2 border-b border-border text-xs font-semibold text-foreground">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Video Source
           </div>
           <UrlInput
             onFetch={handleFetch}
             loading={screenState === 'fetching'}
             error={fetchError}
           />
-        </div>
+        </Card>
       )}
 
       {/* Video info + format picker */}
       {videoDetails && (screenState === 'ready' || screenState === 'downloading') && (
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-5">
+        <Card className="p-5 space-y-4">
           {/* Video preview */}
           <VideoPreview details={videoDetails} />
 
           {screenState === 'ready' && (
             <>
               {/* Format selector */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider text-muted-foreground">
-                  Format
-                </h4>
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-foreground">
+                  Format & Quality
+                </div>
                 <FormatSelector
                   details={videoDetails}
                   mode={mode}
@@ -261,30 +287,26 @@ export const DownloaderScreen: React.FC = () => {
               />
 
               {/* Download button */}
-              <button
+              <Button
                 onClick={handleStartDownload}
                 disabled={!isReadyToDownload}
-                className={cn(
-                  'w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all',
-                  'bg-primary text-primary-foreground hover:bg-primary/90',
-                  'shadow-md shadow-primary/20',
-                  'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none',
-                )}
+                size="lg"
+                className="w-full h-11 text-sm font-semibold gap-2"
               >
                 <Download className="w-4 h-4" />
                 {selectedFormatId === null
                   ? 'Select a Format First'
                   : destinationPath
-                    ? `Start Download (${fileExt.toUpperCase()})`
+                    ? `Download ${fileExt.toUpperCase()}`
                     : `Choose Save Location & Download (${fileExt.toUpperCase()})`}
-              </button>
+              </Button>
             </>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Progress card */}
-      {screenState === 'downloading' && progress && destinationPath && (
+      {/* Progress card while actively downloading */}
+      {screenState === 'downloading' && dlState === 'downloading' && progress && destinationPath && (
         <DownloadProgressBar
           progress={progress}
           destinationPath={destinationPath}
@@ -303,12 +325,13 @@ export const DownloaderScreen: React.FC = () => {
               onCancel={handleCancel}
               onReveal={handleReveal}
             />
-            <button
+            <Button
+              variant="outline"
               onClick={handleReset}
-              className="w-full py-2.5 rounded-xl text-sm font-medium border border-border hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full h-10 text-xs font-medium"
             >
               Download Another Video
-            </button>
+            </Button>
           </div>
         )}
     </div>

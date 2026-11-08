@@ -1,5 +1,6 @@
 import React from 'react'
 import { FolderOpen, Folder } from 'lucide-react'
+import { Button } from '../../../components/ui/button.js'
 import { SaveDialogOptions } from '../../../../../shared/types/ipc.js'
 
 interface DestinationPickerProps {
@@ -22,7 +23,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({
       suggestedFileName: suggestedName,
       filters: [
         {
-          name: fileExtension.toUpperCase() + ' File',
+          name: `${fileExtension.toUpperCase()} File`,
           extensions: [fileExtension.replace(/^\./, '')],
         },
         { name: 'All Files', extensions: ['*'] },
@@ -42,27 +43,29 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({
   return (
     <div className="space-y-1.5">
       <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-        <Folder className="w-3.5 h-3.5 text-primary" />
-        Save Location
+        <Folder className="w-3.5 h-3.5 text-muted-foreground" />
+        Destination
       </label>
 
       <div className="flex gap-2">
-        <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg bg-background border border-border text-xs font-mono text-muted-foreground overflow-hidden">
-          <FolderOpen className="w-3.5 h-3.5 text-primary/70 flex-shrink-0" />
+        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-md bg-muted/40 border border-border text-xs font-mono text-muted-foreground overflow-hidden">
+          <FolderOpen className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           <span className="truncate">
             {destinationPath || (
-              <span className="text-muted-foreground/50 italic">No location selected</span>
+              <span className="text-muted-foreground/60 italic">Default Downloads folder</span>
             )}
           </span>
         </div>
-        <button
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
           onClick={handleBrowse}
-          className="px-4 py-2.5 rounded-lg text-xs font-medium bg-secondary hover:bg-secondary/70 text-foreground transition-colors border border-border/60 whitespace-nowrap"
+          className="h-9 px-3 text-xs"
         >
-          Choose…
-        </button>
+          Change…
+        </Button>
       </div>
     </div>
   )
 }
-

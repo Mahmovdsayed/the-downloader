@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Film, Music, Check } from 'lucide-react'
 import { VideoDetails, VideoFormatOption, DownloadMode } from '../../../../../shared/types/ipc.js'
+import { Badge } from '../../../components/ui/badge.js'
 import { cn } from '../../../lib/utils.js'
 
 function formatBytes(bytes?: string | number): string {
@@ -32,16 +33,14 @@ const TABS: TabDef[] = [
     label: 'Video',
     outputLabel: 'MP4',
     icon: Film,
-    description:
-      'Downloads the best quality video + audio and saves as MP4. Separate streams are merged via FFmpeg.',
+    description: 'Direct MP4 output with combined video & audio streams.',
   },
   {
     id: 'audio-only',
     label: 'Audio',
     outputLabel: 'MP3',
     icon: Music,
-    description:
-      'Downloads the highest-quality audio stream and converts it to MP3 (~190 kbps VBR) via FFmpeg.',
+    description: 'High-quality MP3 audio track (~190 kbps VBR).',
   },
 ]
 
@@ -49,7 +48,6 @@ function filterFormats(formats: VideoFormatOption[], mode: DownloadMode): VideoF
   if (mode === 'audio-only') {
     return formats.filter((f) => f.hasAudio && !f.hasVideo)
   }
-  // video-audio: show all video formats (both combined and video-only — we always merge/remux)
   return formats.filter((f) => f.hasVideo)
 }
 
@@ -83,7 +81,7 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
   return (
     <div className="space-y-3">
       {/* Mode tabs */}
-      <div className="flex gap-1 p-1 rounded-lg bg-secondary/40 border border-border/40">
+      <div className="flex gap-1 p-1 rounded-lg bg-muted border border-border">
         {TABS.map((t) => {
           const Icon = t.icon
           const isActive = mode === t.id
@@ -92,20 +90,20 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
               key={t.id}
               onClick={() => onModeChange(t.id)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold transition-all',
+                'flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-xs font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
+                  ? 'bg-background text-foreground border border-border font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/40',
               )}
             >
               <Icon className="w-3.5 h-3.5" />
               {t.label}
               <span
                 className={cn(
-                  'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                  'text-[10px] font-mono px-1.5 py-0.2 rounded border',
                   isActive
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground',
+                    ? 'bg-secondary text-foreground border-border'
+                    : 'bg-muted text-muted-foreground border-transparent',
                 )}
               >
                 {t.outputLabel}
@@ -115,16 +113,15 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
         })}
       </div>
 
-      {/* Description */}
-      <p className="text-[11px] text-muted-foreground px-1">{tab.description}</p>
+      <p className="text-xs text-muted-foreground px-0.5">{tab.description}</p>
 
       {/* Format list */}
       {filtered.length === 0 ? (
-        <div className="text-xs text-muted-foreground text-center py-8 rounded-lg bg-secondary/20 border border-border/30">
+        <div className="text-xs text-muted-foreground text-center py-6 rounded-lg bg-card border border-border">
           No formats available for this mode.
         </div>
       ) : (
-        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
           {filtered.map((fmt) => {
             const isSelected = selectedFormatId === fmt.itag
             return (
@@ -132,20 +129,20 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
                 key={fmt.itag}
                 onClick={() => onFormatChange(fmt.itag)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border text-left transition-all',
+                  'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border text-left transition-colors',
                   isSelected
-                    ? 'bg-primary/10 border-primary/40 text-foreground'
-                    : 'bg-background border-border/50 hover:border-border hover:bg-secondary/30 text-foreground',
+                    ? 'border-foreground bg-accent text-foreground'
+                    : 'border-border bg-card hover:bg-muted/50 text-foreground',
                 )}
               >
                 {/* Selection indicator */}
                 <div
                   className={cn(
-                    'w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-                    isSelected ? 'border-primary bg-primary' : 'border-border',
+                    'w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0',
+                    isSelected ? 'border-foreground bg-foreground text-background' : 'border-border',
                   )}
                 >
-                  {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                  {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                 </div>
 
                 {/* Format info */}
@@ -155,15 +152,9 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
                       {fmt.qualityLabel || fmt.label || `Format ${fmt.itag}`}
                     </span>
                     {fmt.fps && fmt.fps > 30 && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4">
                         {fmt.fps}fps
-                      </span>
-                    )}
-                    {/* Show "needs merge" badge for video-only formats in video-audio mode */}
-                    {!fmt.hasAudio && fmt.hasVideo && mode === 'video-audio' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        FFmpeg merge
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
@@ -171,7 +162,7 @@ export const FormatSelector: React.FC<FormatSelectorProps> = ({
                     {fmt.audioCodec && <span className="font-mono">{fmt.audioCodec.split('.')[0]}</span>}
                     {fmt.bitrate && <span>{formatBitrate(fmt.bitrate)}</span>}
                     {fmt.contentLength && (
-                      <span className="text-muted-foreground/70">≈ {formatBytes(fmt.contentLength)}</span>
+                      <span>≈ {formatBytes(fmt.contentLength)}</span>
                     )}
                   </div>
                 </div>

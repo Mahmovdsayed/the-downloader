@@ -1,5 +1,5 @@
 import React from 'react'
-import { Download, Settings, Info, Film, List } from 'lucide-react'
+import { Download, Settings, Info, List } from 'lucide-react'
 import { cn } from '../../lib/utils.js'
 
 export type TabType = 'downloader' | 'downloads' | 'settings' | 'about'
@@ -18,17 +18,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
   ]
 
   return (
-    <aside className="w-56 border-r border-border/50 bg-card/40 flex flex-col justify-between p-3 select-none">
+    <aside className="w-56 border-r border-border bg-background flex flex-col justify-between p-3 select-none">
       <div className="space-y-4">
-        <div className="px-3 py-2 flex items-center gap-2.5">
+        <div className="px-2.5 py-1.5 flex items-center gap-2.5">
           <img
             src="/icon.png"
             alt="Local Video Downloader"
-            className="w-8 h-8 rounded-lg shadow-sm border border-border/40 object-cover"
+            className="w-7 h-7 rounded-md border border-border object-cover"
           />
           <div>
-            <div className="text-sm font-semibold text-foreground tracking-tight">Downloader</div>
-            <div className="text-[10px] text-muted-foreground">Local-First v0.1</div>
+            <div className="text-xs font-semibold text-foreground tracking-tight">Downloader</div>
+            <div className="text-[10px] text-muted-foreground">Local v0.1</div>
           </div>
         </div>
 
@@ -41,18 +41,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
                 key={item.id}
                 onClick={() => onSelectTab(item.id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left',
+                  'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-colors text-left',
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50',
+                    ? 'bg-secondary text-foreground border border-border font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent',
                 )}
               >
-                <Icon
-                  className={cn(
-                    'w-4 h-4',
-                    isActive ? 'text-primary-foreground' : 'text-muted-foreground',
-                  )}
-                />
+                <Icon className="w-4 h-4" />
                 {item.label}
               </button>
             )
@@ -60,10 +55,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
         </nav>
       </div>
 
-      <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 text-[11px] text-muted-foreground">
-        <div className="font-medium text-foreground mb-1">Local Processing</div>
+      <div className="p-3 rounded-lg bg-card border border-border text-[11px] text-muted-foreground">
+        <div className="font-medium text-foreground mb-1 text-[11px]">Local Engine</div>
         <div className="text-[10px] leading-relaxed text-muted-foreground">
-          Zero remote servers. All media stays strictly on your device.
+          Zero remote servers. All media is processed on your machine.
         </div>
       </div>
     </aside>

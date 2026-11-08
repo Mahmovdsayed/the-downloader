@@ -10,6 +10,7 @@ import {
   HardDrive,
 } from 'lucide-react'
 import { DownloadProgress, DownloadPhase } from '../../../../../shared/types/ipc.js'
+import { Button } from '../../../components/ui/button.js'
 import { cn } from '../../../lib/utils.js'
 
 function formatBytes(bytes: number): string {
@@ -36,18 +37,12 @@ const PHASE_LABELS: Record<DownloadPhase, string> = {
   preparing: 'Preparing…',
   'downloading-video': 'Downloading video stream…',
   'downloading-audio': 'Downloading audio stream…',
-  merging: 'Multiplexing streams with FFmpeg…',
+  merging: 'Merging streams with FFmpeg…',
   trimming: 'Trimming with FFmpeg…',
   saving: 'Writing file to disk…',
   completed: 'Download complete',
   cancelled: 'Cancelled',
   failed: 'Download failed',
-}
-
-const PHASE_COLORS: Partial<Record<DownloadPhase, string>> = {
-  completed: 'text-emerald-400',
-  cancelled: 'text-muted-foreground',
-  failed: 'text-destructive',
 }
 
 interface DownloadProgressBarProps {
@@ -66,17 +61,9 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
   const isDone = progress.phase === 'completed'
   const isFailed = progress.phase === 'failed'
   const isCancelled = progress.phase === 'cancelled'
-  const isActive =
-    !isDone &&
-    !isFailed &&
-    !isCancelled &&
-    progress.phase !== 'saving' &&
-    progress.phase !== 'merging' &&
-    progress.phase !== 'trimming'
+  const isActive = !isDone && !isFailed && !isCancelled
 
   const percent = progress.percent ?? 0
-
-  // For non-download phases that don't report percent, show indeterminate
   const isIndeterminate =
     progress.percent === undefined &&
     ['merging', 'trimming', 'saving', 'preparing'].includes(progress.phase)
@@ -84,70 +71,66 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
   return (
     <div
       className={cn(
-        'rounded-xl border p-4 space-y-3 transition-all',
+        'rounded-lg border p-4 space-y-3 transition-colors',
         isDone
-          ? 'border-emerald-500/30 bg-emerald-500/5'
+          ? 'border-border bg-card'
           : isFailed
             ? 'border-destructive/30 bg-destructive/5'
             : isCancelled
-              ? 'border-border/40 bg-secondary/10'
-              : 'border-border bg-card/60',
+              ? 'border-border bg-muted/20'
+              : 'border-border bg-card',
       )}
     >
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isDone ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           ) : isFailed ? (
             <XCircle className="w-4 h-4 text-destructive" />
           ) : isCancelled ? (
             <XCircle className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            <Loader2 className="w-4 h-4 text-foreground animate-spin" />
           )}
 
-          <span
-            className={cn(
-              'text-xs font-medium',
-              PHASE_COLORS[progress.phase] ?? 'text-foreground',
-            )}
-          >
+          <span className="text-xs font-medium text-foreground">
             {PHASE_LABELS[progress.phase]}
           </span>
         </div>
 
-        {/* Cancel or Reveal button */}
+        {/* Action */}
         {!isDone && !isFailed && !isCancelled ? (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onCancel}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-secondary/50"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5 mr-1" />
             Cancel
-          </button>
+          </Button>
         ) : isDone ? (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onReveal}
-            className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded hover:bg-primary/10"
+            className="h-7 px-2.5 text-xs"
           >
-            <FolderOpen className="w-3 h-3" />
-            Reveal
-          </button>
+            <FolderOpen className="w-3.5 h-3.5 mr-1.5" />
+            Show in Folder
+          </Button>
         ) : null}
       </div>
 
       {/* Progress bar */}
       {!isCancelled && !isFailed && (
-        <div className="relative w-full h-2 rounded-full bg-secondary overflow-hidden">
+        <div className="relative w-full h-1.5 rounded-full bg-secondary overflow-hidden">
           {isIndeterminate ? (
-            <div className="absolute inset-0 bg-primary/60 animate-pulse rounded-full" />
+            <div className="absolute inset-0 bg-foreground/60 animate-pulse rounded-full" />
           ) : (
             <div
-              className={cn(
-                'h-full rounded-full transition-all duration-300',
-                isDone ? 'bg-emerald-500' : 'bg-primary',
-              )}
+              className="h-full rounded-full bg-foreground transition-all duration-200"
               style={{ width: `${Math.max(2, percent)}%` }}
             />
           )}
@@ -159,7 +142,7 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
         (progress.downloadedBytes ||
           progress.speedBytesPerSecond ||
           progress.etaSeconds !== undefined) && (
-          <div className="flex items-center gap-4 text-[11px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-mono flex-wrap">
             {progress.downloadedBytes !== undefined && (
               <span className="flex items-center gap-1">
                 <HardDrive className="w-3 h-3" />
@@ -180,7 +163,7 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
               </span>
             )}
             {progress.percent !== undefined && (
-              <span className="ml-auto font-mono font-semibold text-foreground">
+              <span className="ml-auto font-semibold text-foreground">
                 {progress.percent}%
               </span>
             )}
@@ -189,7 +172,7 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
 
       {/* Error message */}
       {isFailed && progress.error && (
-        <p className="text-xs text-destructive leading-relaxed bg-destructive/10 p-2.5 rounded-lg">
+        <p className="text-xs text-destructive leading-relaxed bg-destructive/10 p-2.5 rounded-md font-mono">
           {progress.error}
         </p>
       )}
@@ -203,4 +186,3 @@ export const DownloadProgressBar: React.FC<DownloadProgressBarProps> = ({
     </div>
   )
 }
-

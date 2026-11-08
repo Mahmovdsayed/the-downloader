@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Scissors, AlertTriangle, Clock } from 'lucide-react'
+import { Scissors, AlertCircle, Clock } from 'lucide-react'
+import { Input } from '../../../components/ui/input.js'
 import { cn } from '../../../lib/utils.js'
 
 export interface TrimRange {
@@ -14,7 +15,6 @@ interface TrimRangePickerProps {
 }
 
 function parseTime(input: string): number | null {
-  // Accept hh:mm:ss, mm:ss, or bare seconds
   const parts = input.split(':').map((p) => parseFloat(p.trim()))
   if (parts.some(isNaN)) return null
 
@@ -54,20 +54,20 @@ export const TrimRangePicker: React.FC<TrimRangePickerProps> = ({
 
   const startError =
     startSec === null
-      ? 'Invalid time format (use mm:ss or hh:mm:ss)'
+      ? 'Use mm:ss or hh:mm:ss'
       : startSec < 0
         ? 'Start must be ≥ 0'
         : startSec >= durationSeconds
-          ? 'Start exceeds video duration'
+          ? 'Exceeds duration'
           : null
 
   const endError =
     endSec === null
-      ? 'Invalid time format (use mm:ss or hh:mm:ss)'
+      ? 'Use mm:ss or hh:mm:ss'
       : endSec > durationSeconds
-        ? `End exceeds video duration (${formatTime(durationSeconds)})`
+        ? `Exceeds ${formatTime(durationSeconds)}`
         : startSec !== null && endSec <= startSec
-          ? 'End must be greater than start'
+          ? 'End must be > start'
           : null
 
   const isValid = !startError && !endError && startSec !== null && endSec !== null
@@ -92,64 +92,44 @@ export const TrimRangePicker: React.FC<TrimRangePickerProps> = ({
   }
 
   return (
-    <div className="rounded-lg border border-border/50 bg-secondary/10 overflow-hidden">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
       {/* Toggle header */}
-      <label className="flex items-center justify-between p-3.5 cursor-pointer select-none hover:bg-secondary/20 transition-colors">
+      <label className="flex items-center justify-between p-3.5 cursor-pointer select-none hover:bg-muted/30 transition-colors">
         <div className="flex items-center gap-2.5">
           <Scissors className="w-4 h-4 text-muted-foreground" />
           <div>
-            <div className="text-xs font-medium text-foreground">Trim Range</div>
+            <div className="text-xs font-medium text-foreground">Trim Clip</div>
             <div className="text-[11px] text-muted-foreground">
-              Clip a specific time range before saving
+              Optionally extract a segment instead of the full video
             </div>
           </div>
         </div>
-        <div className="relative">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={toggleEnabled}
-            className="sr-only"
-          />
-          <div
-            className={cn(
-              'w-9 h-5 rounded-full transition-colors',
-              enabled ? 'bg-primary' : 'bg-secondary border border-border',
-            )}
-          >
-            <div
-              className={cn(
-                'w-4 h-4 bg-white rounded-full shadow-sm absolute top-0.5 transition-transform',
-                enabled ? 'translate-x-4' : 'translate-x-0.5',
-              )}
-            />
-          </div>
-        </div>
+
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={toggleEnabled}
+          className="w-4 h-4 rounded border-border accent-foreground cursor-pointer"
+        />
       </label>
 
       {/* Time inputs */}
       {enabled && (
-        <div className="px-3.5 pb-3.5 space-y-3">
+        <div className="px-3.5 pb-3.5 space-y-3 border-t border-border pt-3">
           <div className="flex gap-3 items-start">
             {/* Start */}
             <div className="flex-1">
-              <label className="block text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+              <label className="block text-[11px] text-muted-foreground mb-1 flex items-center gap-1 font-medium">
                 <Clock className="w-3 h-3" />
                 Start
               </label>
-              <input
+              <Input
                 type="text"
                 value={startStr}
                 onChange={(e) => setStartStr(e.target.value)}
                 onBlur={handleBlur}
                 placeholder="0:00"
-                className={cn(
-                  'w-full px-3 py-2 rounded-lg border bg-background text-xs font-mono text-foreground outline-none transition-colors',
-                  'focus:ring-1',
-                  startError
-                    ? 'border-destructive focus:ring-destructive/20'
-                    : 'border-border focus:border-primary focus:ring-primary/20',
-                )}
+                className={cn('h-8 font-mono text-xs', startError && 'border-destructive')}
               />
               {startError && (
                 <p className="text-[10px] text-destructive mt-1">{startError}</p>
@@ -160,23 +140,17 @@ export const TrimRangePicker: React.FC<TrimRangePickerProps> = ({
 
             {/* End */}
             <div className="flex-1">
-              <label className="block text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+              <label className="block text-[11px] text-muted-foreground mb-1 flex items-center gap-1 font-medium">
                 <Clock className="w-3 h-3" />
                 End
               </label>
-              <input
+              <Input
                 type="text"
                 value={endStr}
                 onChange={(e) => setEndStr(e.target.value)}
                 onBlur={handleBlur}
                 placeholder={formatTime(durationSeconds)}
-                className={cn(
-                  'w-full px-3 py-2 rounded-lg border bg-background text-xs font-mono text-foreground outline-none transition-colors',
-                  'focus:ring-1',
-                  endError
-                    ? 'border-destructive focus:ring-destructive/20'
-                    : 'border-border focus:border-primary focus:ring-primary/20',
-                )}
+                className={cn('h-8 font-mono text-xs', endError && 'border-destructive')}
               />
               {endError && (
                 <p className="text-[10px] text-destructive mt-1">{endError}</p>
@@ -184,24 +158,14 @@ export const TrimRangePicker: React.FC<TrimRangePickerProps> = ({
             </div>
           </div>
 
-          {/* Keyframe warning */}
-          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-300/90 leading-relaxed">
-              Trim uses <code className="font-mono">-c copy</code> for speed. Output boundaries are
-              rounded to nearest keyframes — exact frame accuracy requires re-encoding.
+          <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted text-xs text-muted-foreground">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed">
+              Trimming uses direct stream copying without re-encoding. Cuts align with the nearest keyframe.
             </p>
           </div>
-
-          {isValid && startSec !== null && endSec !== null && (
-            <div className="text-[11px] text-muted-foreground">
-              Clip duration:{' '}
-              <span className="font-mono text-foreground">{formatTime(endSec - startSec)}</span>
-            </div>
-          )}
         </div>
       )}
     </div>
   )
 }
-
