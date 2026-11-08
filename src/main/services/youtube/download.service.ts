@@ -104,33 +104,50 @@ export class DownloadService {
 
         if (job.isCancelled) return
 
-        // Step C: Merge streams with FFmpeg (and apply trim if requested)
+        // Step C: Merge streams with FFmpeg
+        // Always use MKV as the intermediate merge container — it is codec-agnostic
+        // and accepts VP9/AV1/H264 video + AAC/Opus/MP4A audio without re-encoding.
         const mergePhase = request.trim ? 'trimming' : 'merging'
         DownloadJobManager.emitProgress(request.jobId, {
           phase: mergePhase,
           message: request.trim ? 'Trimming and multiplexing audio/video...' : 'Multiplexing audio and video streams...',
-          percent: 95,
+          percent: 90,
         })
 
-        const tempMergedFile = path.join(tempDir, `merged.${targetFormat.container || 'mp4'}`)
+        const tempMergedMkv = path.join(tempDir, 'merged.mkv')
         await FfmpegService.mergeStreams({
           videoPath: tempVideoFile,
           audioPath: tempAudioFile,
-          outputPath: tempMergedFile,
+          outputPath: tempMergedMkv,
           trim: request.trim,
           onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
         })
 
         if (job.isCancelled) return
 
-        // Step D: Move to destination
-        DownloadJobManager.emitProgress(request.jobId, {
-          phase: 'saving',
-          message: 'Writing completed file to destination...',
-          percent: 99,
-        })
+        // Step D: Remux MKV → user's chosen format if needed (fast stream copy)
+        const destExt = path.extname(request.destinationPath).slice(1).toLowerCase()
+        const needsRemux = destExt !== 'mkv' && destExt !== ''
 
-        await this.moveFile(tempMergedFile, request.destinationPath)
+        if (needsRemux) {
+          DownloadJobManager.emitProgress(request.jobId, {
+            phase: 'saving',
+            message: `Remuxing to .${destExt}...`,
+            percent: 97,
+          })
+          await FfmpegService.remuxToTarget({
+            inputPath: tempMergedMkv,
+            outputPath: request.destinationPath,
+            onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
+          })
+        } else {
+          DownloadJobManager.emitProgress(request.jobId, {
+            phase: 'saving',
+            message: 'Writing completed file to destination...',
+            percent: 97,
+          })
+          await this.moveFile(tempMergedMkv, request.destinationPath)
+        }
       } else {
         // Single stream workflow (video-audio combined, video-only, or audio-only)
         const streamExt = targetFormat.container || (request.mode === 'audio-only' ? 'm4a' : 'mp4')
