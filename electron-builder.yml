@@ -1,0 +1,72 @@
+appId: com.localvideo.downloader
+productName: Local Video Downloader
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist
+  - dist-electron
+  - "!**/*.map"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+
+publish:
+  provider: github
+  owner: Mahmovdsayed
+  repo: the-downloader
+  releaseType: release
+
+mac:
+  category: public.app-category.utilities
+  identity: null
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  extraResources:
+    - from: resources/binaries/darwin-${arch}
+      to: binaries/darwin-${arch}
+      filter:
+        - "**/*"
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSAppleEventsUsageDescription: "Access is needed to execute local media processing binaries."
+  darkModeSupport: true
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+  window:
+    width: 540
+    height: 380
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+  extraResources:
+    - from: resources/binaries/win32-${arch}
+      to: binaries/win32-${arch}
+      filter:
+        - "**/*"
+  legalTrademarks: "Copyright © 2026 Local Video Downloader"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: "Local Video Downloader"
