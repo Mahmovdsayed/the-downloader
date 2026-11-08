@@ -1,5 +1,5 @@
 import React from 'react'
-import { ShieldCheck, HardDrive } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 
 interface HeaderProps {
   platform: string
@@ -14,9 +14,6 @@ export const Header: React.FC<HeaderProps> = ({ platform }) => {
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground [app-region:no-drag]">
         <img src="/icon.png" alt="" className="w-4 h-4 rounded object-cover shadow-sm" />
         <span className="font-semibold text-foreground">Local Video Downloader</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-          Local-First Engine
-        </span>
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground [app-region:no-drag]">
