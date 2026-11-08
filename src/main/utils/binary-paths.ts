@@ -45,16 +45,22 @@ export function resolveBinaryPath(binaryName: string): ResolvedBinary {
     }
   }
 
-  // Fallback for development convenience: if not yet copied to resources/binaries in dev, check PATH
+  // Fallback for development convenience: if not yet copied to resources/binaries in dev, check system locations
   if (!app.isPackaged) {
-    const systemCandidate = isWindows
-      ? exeName
-      : `/opt/homebrew/bin/${exeName}`
-    if (fs.existsSync(systemCandidate)) {
-      return {
-        found: true,
-        path: systemCandidate,
-        isBundled: false,
+    const systemCandidates = isWindows
+      ? [exeName]
+      : [
+          `/opt/homebrew/bin/${exeName}`,
+          `/usr/local/bin/${exeName}`,
+          `/usr/bin/${exeName}`,
+        ]
+    for (const sysPath of systemCandidates) {
+      if (fs.existsSync(sysPath)) {
+        return {
+          found: true,
+          path: sysPath,
+          isBundled: false,
+        }
       }
     }
   }

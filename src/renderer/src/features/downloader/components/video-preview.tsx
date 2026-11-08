@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Clock, User, Youtube } from 'lucide-react'
 import { VideoDetails } from '../../../../../shared/types/ipc.js'
 
@@ -17,24 +17,34 @@ interface VideoPreviewProps {
 }
 
 export const VideoPreview: React.FC<VideoPreviewProps> = ({ details }) => {
+  const [imgFailed, setImgFailed] = useState(false)
+
+  // Reset fallback state when a new video is loaded
+  useEffect(() => {
+    setImgFailed(false)
+  }, [details.id, details.thumbnailUrl])
+
   return (
     <div className="flex gap-4 p-4 rounded-xl border border-border bg-card/60">
       {/* Thumbnail */}
       <div className="flex-shrink-0 w-40 h-24 rounded-lg overflow-hidden bg-secondary/40 border border-border/40 relative">
-        {details.thumbnailUrl ? (
+        {details.thumbnailUrl && !imgFailed ? (
           <img
             src={details.thumbnailUrl}
             alt={details.title}
+            referrerPolicy="no-referrer"
+            onError={() => setImgFailed(true)}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Youtube className="w-8 h-8 text-muted-foreground/40" />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-secondary/30 text-muted-foreground/60 gap-1">
+            <Youtube className="w-8 h-8 text-primary/60" />
+            <span className="text-[10px] font-medium text-muted-foreground">Preview</span>
           </div>
         )}
 
         {/* Duration badge */}
-        <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
+        <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded backdrop-blur-sm">
           {formatDuration(details.durationSeconds)}
         </div>
       </div>

@@ -143,42 +143,31 @@ export class DownloadService {
 
           if (job.isCancelled) return
 
-          // C — Merge to MKV (codec-agnostic container, -c copy for video, -c:a copy for audio)
+          // C — Merge directly to final MP4
+          const isAudioAac =
+            bestAudio.container === 'm4a' ||
+            bestAudio.audioCodec?.includes('mp4a') ||
+            bestAudio.audioCodec?.includes('aac')
+
           const mergePhase = request.trim ? 'trimming' : 'merging'
           DownloadJobManager.emitProgress(request.jobId, {
             phase: mergePhase,
             message: request.trim
-              ? 'Trimming and merging streams...'
-              : 'Merging video and audio streams...',
-            percent: 90,
+              ? 'Trimming and writing MP4...'
+              : 'Merging streams into MP4...',
+            percent: 92,
           })
 
-          const tempMkv = path.join(tempDir, 'merged.mkv')
           await FfmpegService.mergeStreams({
             videoPath: tempVideoFile,
             audioPath: tempAudioFile,
-            outputPath: tempMkv,
+            outputPath: request.destinationPath,
+            isAudioAac,
             trim: request.trim,
             onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
           })
-
-          if (job.isCancelled) return
-
-          // D — Remux MKV → MP4 (stream copy, fast)
-          DownloadJobManager.emitProgress(request.jobId, {
-            phase: 'saving',
-            message: 'Writing MP4 file...',
-            percent: 97,
-          })
-
-          await FfmpegService.remuxToTarget({
-            inputPath: tempMkv,
-            outputPath: request.destinationPath,
-            onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
-          })
-
         } else {
-          // Single combined stream — download then remux/trim to MP4
+          // Single combined stream — download then remux/trim directly to final MP4
           const streamExt = targetFormat.container || 'mp4'
           const tempStreamFile = path.join(tempDir, `stream.${streamExt}`)
 
@@ -199,48 +188,26 @@ export class DownloadService {
 
           if (job.isCancelled) return
 
-          if (request.trim || streamExt !== 'mp4') {
-            // Remux/trim to MP4
+          const isAudioAac =
+            targetFormat.container === 'mp4' ||
+            targetFormat.audioCodec?.includes('mp4a') ||
+            targetFormat.audioCodec?.includes('aac')
+
+          if (request.trim || streamExt !== 'mp4' || !isAudioAac) {
             DownloadJobManager.emitProgress(request.jobId, {
               phase: request.trim ? 'trimming' : 'saving',
               message: request.trim ? 'Trimming and writing MP4...' : 'Writing MP4 file...',
               percent: 95,
             })
 
-            const tempMkv = path.join(tempDir, 'stream.mkv')
-            if (request.trim) {
-              await FfmpegService.mergeStreams({
-                videoPath: tempStreamFile,
-                audioPath: tempStreamFile,
-                outputPath: tempMkv,
-                trim: request.trim,
-                onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
-              })
-            } else {
-              await FfmpegService.remuxToTarget({
-                inputPath: tempStreamFile,
-                outputPath: request.destinationPath,
-                onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
-              })
-              // already written to destination — skip moveFile
-              DownloadJobManager.cleanupJob(request.jobId)
-              DownloadJobManager.emitProgress(request.jobId, {
-                phase: 'completed',
-                percent: 100,
-                message: 'Download completed successfully.',
-              })
-              return
-            }
-
-            if (job.isCancelled) return
-
-            await FfmpegService.remuxToTarget({
-              inputPath: tempMkv,
+            await FfmpegService.remuxOrTrimToMp4({
+              inputPath: tempStreamFile,
               outputPath: request.destinationPath,
+              isAudioAac,
+              trim: request.trim,
               onProcessSpawned: (proc) => DownloadJobManager.registerProcess(request.jobId, proc),
             })
           } else {
-            // Already MP4, just move
             DownloadJobManager.emitProgress(request.jobId, {
               phase: 'saving',
               message: 'Writing MP4 file...',

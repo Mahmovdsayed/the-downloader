@@ -14,16 +14,20 @@ const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
  */
 async function fetchThumbnailAsDataUri(url: string): Promise<string | undefined> {
   try {
-    // Use Node's built-in fetch (available in Node 18+)
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        Referer: 'https://www.youtube.com/',
+      },
       signal: AbortSignal.timeout(8000),
     })
     if (!response.ok) return undefined
     const buffer = Buffer.from(await response.arrayBuffer())
     const contentType = response.headers.get('content-type') || 'image/jpeg'
     return `data:${contentType};base64,${buffer.toString('base64')}`
-  } catch {
+  } catch (err) {
+    console.warn(`Could not convert thumbnail from ${url} to data URI:`, (err as Error).message)
     return undefined
   }
 }
@@ -52,19 +56,22 @@ export class VideoInfoService {
     const details = rawInfo.videoDetails || {}
     const durationSeconds = parseInt(details.lengthSeconds || '0', 10)
 
-    // Select best thumbnail — prefer medium-sized (480px wide) for balance of quality vs payload
+    // Select best thumbnail — prefer medium-sized (480-640px wide) for balance of quality vs payload
     let thumbnailUrl: string | undefined
     if (Array.isArray(details.thumbnails) && details.thumbnails.length > 0) {
       const sorted = [...details.thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0))
-      // Pick the highest-res thumbnail but skip anything wider than 640 to keep data URI size sane
-      const preferred = sorted.find((t) => (t.width || 9999) <= 640) || sorted[sorted.length - 1]
+      const preferred = sorted.find((t) => (t.width || 0) > 0 && (t.width || 0) <= 640) || sorted[0]
       const rawUrl: string | undefined = preferred?.url
       if (rawUrl) {
-        // Fetch in main process and proxy as data URI → renderer never needs outbound HTTP
         thumbnailUrl = await fetchThumbnailAsDataUri(rawUrl)
-        // Fallback: pass raw URL (works when renderer has network access)
         if (!thumbnailUrl) thumbnailUrl = rawUrl
       }
+    }
+
+    // Fallback: standard high-quality YouTube thumbnail endpoint
+    if (!thumbnailUrl && videoId) {
+      const canonicalUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+      thumbnailUrl = (await fetchThumbnailAsDataUri(canonicalUrl)) || canonicalUrl
     }
 
     const normalizedFormats = FormatSelectionService.normalizeFormats(rawInfo.formats || [])

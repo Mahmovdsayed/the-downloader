@@ -13,6 +13,7 @@ export interface MergeOptions {
   videoPath: string
   audioPath: string
   outputPath: string
+  isAudioAac?: boolean
   trim?: {
     startSeconds: number
     endSeconds: number
@@ -140,15 +141,11 @@ export class FfmpegService {
   }
 
   /**
-   * Merges a separate video stream and audio stream into a single output file.
-   *
-   * Strategy: Always use MKV as the intermediate merge container because MKV
-   * is codec-agnostic — it accepts VP9, AV1, H.264, H.265 video paired with
-   * AAC, Opus, Vorbis, or MP3 audio without requiring re-encoding.
-   *
-   * The caller must pass `outputPath` with a `.mkv` extension for the temp file.
-   * A separate remux step (MKV → target format) is handled in download.service.ts
-   * when the user's chosen extension differs from .mkv.
+   * Merges video and audio streams directly into an MP4 output.
+   * - Video is always stream-copied without re-encoding (-c:v copy).
+   * - If audio is already AAC, it is stream-copied (-c:a copy).
+   * - If audio is Opus or WebM, it is cleanly encoded to standard AAC (-c:a aac -b:a 192k).
+   * - Sets -movflags +faststart for instant playback across all desktop players.
    */
   public static mergeStreams(options: MergeOptions): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -170,8 +167,10 @@ export class FfmpegService {
           '-to', String(end),
           '-i', options.audioPath,
           '-c:v', 'copy',
-          '-c:a', 'copy',
+          '-c:a', options.isAudioAac ? 'copy' : 'aac',
+          ...(options.isAudioAac ? [] : ['-b:a', '192k']),
           '-avoid_negative_ts', 'make_zero',
+          '-movflags', '+faststart',
           '-y', options.outputPath,
         )
       } else {
@@ -179,7 +178,9 @@ export class FfmpegService {
           '-i', options.videoPath,
           '-i', options.audioPath,
           '-c:v', 'copy',
-          '-c:a', 'copy',
+          '-c:a', options.isAudioAac ? 'copy' : 'aac',
+          ...(options.isAudioAac ? [] : ['-b:a', '192k']),
+          '-movflags', '+faststart',
           '-y', options.outputPath,
         )
       }
@@ -216,12 +217,13 @@ export class FfmpegService {
   }
 
   /**
-   * Fast stream-copy remux from one container to another (e.g. MKV → MP4).
-   * No re-encoding — only the container wrapper changes.
+   * Directly remuxes and/or trims a single input stream into a clean MP4 container.
    */
-  public static remuxToTarget(options: {
+  public static remuxOrTrimToMp4(options: {
     inputPath: string
     outputPath: string
+    isAudioAac?: boolean
+    trim?: { startSeconds: number; endSeconds: number }
     onProcessSpawned?: (process: ChildProcess) => void
   }): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -230,12 +232,24 @@ export class FfmpegService {
         return reject(new Error(resolved.error || 'FFmpeg binary not available for remux.'))
       }
 
-      const args = [
+      const args: string[] = []
+
+      if (options.trim) {
+        args.push(
+          '-ss', String(Math.max(0, options.trim.startSeconds)),
+          '-to', String(options.trim.endSeconds),
+        )
+      }
+
+      args.push(
         '-i', options.inputPath,
-        '-c', 'copy',
+        '-c:v', 'copy',
+        '-c:a', options.isAudioAac ? 'copy' : 'aac',
+        ...(options.isAudioAac ? [] : ['-b:a', '192k']),
+        '-avoid_negative_ts', 'make_zero',
         '-movflags', '+faststart',
         '-y', options.outputPath,
-      ]
+      )
 
       const child = spawn(resolved.path, args, { windowsHide: true, shell: false })
       if (options.onProcessSpawned) options.onProcessSpawned(child)
@@ -245,12 +259,12 @@ export class FfmpegService {
       child.on('error', (err) => { reject(new Error(`FFmpeg remux failed: ${err.message}`)) })
       child.on('close', (code, signal) => {
         if (signal === 'SIGKILL' || signal === 'SIGTERM') {
-          return reject(new Error('FFmpeg remux was cancelled.'))
+          return reject(new Error('FFmpeg process was cancelled.'))
         }
         if (code === 0) {
           resolve()
         } else {
-          reject(new Error(`FFmpeg remux exited with code ${code}: ${stderr.slice(-300)}`))
+          reject(new Error(`FFmpeg processing exited with code ${code}: ${stderr.slice(-400)}`))
         }
       })
     })

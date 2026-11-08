@@ -42,16 +42,22 @@ export class FormatSelectionService {
     }
 
     // Sort formats logically:
-    // Video: by resolution descending, then fps descending
-    // Audio: by bitrate descending
+    // Video: by resolution descending, prefer MP4/H264, then fps descending
+    // Audio: by bitrate descending, prefer M4A/AAC
     return normalized.sort((a, b) => {
       if (a.hasVideo && b.hasVideo) {
         const resA = parseInt(a.qualityLabel?.replace(/\D/g, '') || '0', 10)
         const resB = parseInt(b.qualityLabel?.replace(/\D/g, '') || '0', 10)
         if (resA !== resB) return resB - resA
+        const isMp4A = a.container === 'mp4' || a.videoCodec?.startsWith('avc') ? 1 : 0
+        const isMp4B = b.container === 'mp4' || b.videoCodec?.startsWith('avc') ? 1 : 0
+        if (isMp4A !== isMp4B) return isMp4B - isMp4A
         return (b.fps || 0) - (a.fps || 0)
       }
       if (a.hasAudio && b.hasAudio) {
+        const isM4aA = a.container === 'm4a' || a.audioCodec?.includes('mp4a') || a.audioCodec?.includes('aac') ? 1 : 0
+        const isM4aB = b.container === 'm4a' || b.audioCodec?.includes('mp4a') || b.audioCodec?.includes('aac') ? 1 : 0
+        if (isM4aA !== isM4aB) return isM4aB - isM4aA
         return (b.bitrate || 0) - (a.bitrate || 0)
       }
       return 0
@@ -63,7 +69,14 @@ export class FormatSelectionService {
     if (!Array.isArray(rawFormats)) return null
     const audioOnly = rawFormats.filter((f) => f && f.hasAudio && !f.hasVideo)
     if (audioOnly.length > 0) {
-      // Pick highest bitrate audio
+      // Prefer M4A (AAC) first so it can be stream-copied directly into MP4 without re-encoding
+      const m4aAudio = audioOnly.filter(
+        (f) => f.container === 'm4a' || f.audioCodec?.includes('mp4a') || f.audioCodec?.includes('aac'),
+      )
+      if (m4aAudio.length > 0) {
+        return m4aAudio.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0]
+      }
+      // Otherwise pick highest bitrate audio
       return audioOnly.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0]
     }
     // Fallback to any format with audio

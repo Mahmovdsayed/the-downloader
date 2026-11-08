@@ -88,8 +88,8 @@ export function setupSecurityHeaders(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
     const csp = isDev
-      ? "default-src 'self' 'unsafe-inline' http: ws:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';"
-      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none';";
+      ? "default-src 'self' 'unsafe-inline' http: ws:; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline';"
+      : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self'; connect-src 'none';";
 
     callback({
       responseHeaders: {

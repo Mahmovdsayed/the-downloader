@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron'
-import { IPC_CHANNELS, UpdateStatus } from '../../../shared/types/ipc'
+import { IPC_CHANNELS, UpdateStatus } from '../../../shared/types/ipc.js'
 
 export class UpdaterService {
   private static currentStatus: UpdateStatus = { status: 'idle' }
